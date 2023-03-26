@@ -6,27 +6,88 @@ pygame.init()
 # Global Constants
 SCREEN_HEIGHT = 850
 SCREEN_WIDTH = 1600
+
+font = pygame.font.Font('freesansbold.ttf', 20)
+
+LEADERBOARDENTRIES = 10
+leaderboard = open("leaderboard.txt", "r")
+leaderboardValues = []
+
+leaderboardScores = []
+leaderboardNames = []
+
+
+leaderboard = open("leaderboard.txt", "r")
+leaderboardValues = []
+for i in range(LEADERBOARDENTRIES*2):
+    leaderboardValues.insert(100000000, leaderboard.readline())
+for i in range(LEADERBOARDENTRIES):
+    leaderboardScores.insert(1000000000000, int(leaderboardValues[2*i+1][:-1:]))
+for i in range(LEADERBOARDENTRIES):
+    leaderboardNames.insert(1000000000000, leaderboardValues[2*i][:-1:])
+print(leaderboardNames)
+
+
+
+def displayLBText():
+    leaderboard = open("leaderboard.txt", "r")
+    leaderboardValues = []
+    for i in range(LEADERBOARDENTRIES*2):
+        leaderboardValues.insert(100000000, leaderboard.readline())
+    i = -1
+    for j in range(LEADERBOARDENTRIES):
+        text = ""
+        i+=1
+        text += leaderboardValues[i][:-1:]
+        i+=1
+        text += " " + leaderboardValues[i][:-1:]
+        text = font.render(text, True, (0, 0, 0))
+        score = font.render("Your Score: " + str(points), True, (0, 0, 0))
+        textRect = text.get_rect()
+        textRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 200 + j * 30)
+        SCREEN.blit(text, textRect)
+    return text
+
+def insertNewScoreIntoLB(name, score):
+    if score > leaderboardScores[-1]:
+        i=0
+        while score < leaderboardScores[i]:
+            i+=1
+        leaderboardNames.insert(i, name)
+        del leaderboardNames[-1]
+        leaderboardScores.insert(i, score)
+        del leaderboardScores[-1]
+        leaderboardText = ""
+        for i in range(LEADERBOARDENTRIES):
+            leaderboardText += leaderboardNames[i] + "\n"
+            leaderboardText += str(leaderboardScores[i]) + "\n"
+        leaderboardText += " \n"
+        f = open("leaderboard.txt", "w")
+        f.write(leaderboardText)
+        print(leaderboardText)
+
+
 SCREEN = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-RUNNING = [pygame.image.load(os.path.join("Assets/Dino", "Robot.png")),
-           pygame.image.load(os.path.join("Assets/Dino", "Robot.png"))]
-JUMPING = pygame.image.load(os.path.join("Assets/Dino", "Robot.png"))
-DUCKING = [pygame.image.load(os.path.join("Assets/Dino", "Robot.png")),
-           pygame.image.load(os.path.join("Assets/Dino", "Robot  .png"))]
+RUNNING = [pygame.image.load(os.path.join("Dino", "Robot.png")),
+           pygame.image.load(os.path.join("Dino", "Robot.png"))]
+JUMPING = pygame.image.load(os.path.join("Dino", "Robot.png"))
+DUCKING = [pygame.image.load(os.path.join("Dino", "Robot.png")),
+           pygame.image.load(os.path.join("Dino", "Robot.png"))]
 
-SMALL_CACTUS = [pygame.image.load(os.path.join("Assets/Cactus", "SmallCactus1.png")),
-                pygame.image.load(os.path.join("Assets/Cactus", "SmallCactus2.png")),
-                pygame.image.load(os.path.join("Assets/Cactus", "SmallCactus3.png"))]
-LARGE_CACTUS = [pygame.image.load(os.path.join("Assets/Cactus", "LargeCactus1.png")),
-                pygame.image.load(os.path.join("Assets/Cactus", "LargeCactus2.png")),
-                pygame.image.load(os.path.join("Assets/Cactus", "LargeCactus3.png"))]
+SMALL_CACTUS = [pygame.image.load(os.path.join("Cactus", "SmallCactus1.png")),
+                pygame.image.load(os.path.join("Cactus", "SmallCactus2.png")),
+                pygame.image.load(os.path.join("Cactus", "SmallCactus3.png"))]
+LARGE_CACTUS = [pygame.image.load(os.path.join("Cactus", "LargeCactus1.png")),
+                pygame.image.load(os.path.join("Cactus", "LargeCactus2.png")),
+                pygame.image.load(os.path.join("Cactus", "LargeCactus3.png"))]
 
-BIRD = [pygame.image.load(os.path.join("Assets/Bird", "Bird1.png")),
-        pygame.image.load(os.path.join("Assets/Bird", "Bird2.png"))]
+BIRD = [pygame.image.load(os.path.join("Bird", "Bird1.png")),
+        pygame.image.load(os.path.join("Bird", "Bird2.png"))]
 
-CLOUD = pygame.image.load(os.path.join("Assets/Other", "Cloud.png"))
+CLOUD = pygame.image.load(os.path.join("Other", "Cloud.png"))
 
-BG = pygame.image.load(os.path.join("Assets/Other", "Track.png"))
+BG = pygame.image.load(os.path.join("Other", "Track.png"))
 
 
 class Dinosaur:
@@ -43,6 +104,7 @@ class Dinosaur:
         self.dino_duck = False
         self.dino_run = True
         self.dino_jump = False
+        self.timeSinceJump = 0
 
         self.step_index = 0
         self.jump_vel = self.JUMP_VEL
@@ -91,7 +153,7 @@ class Dinosaur:
 
     def jump(self):
         self.image = self.jump_img
-        if self.dino_jump:
+        if self.dino_jump and self.timeSinceJump > 10:
             self.dino_rect.y -= self.jump_vel * 4
             self.jump_vel -= 0.8
         if self.jump_vel < - self.JUMP_VEL:
@@ -163,17 +225,17 @@ class Bird(Obstacle):
         self.index += 1
 
 
+clock = pygame.time.Clock()
 def main():
     global game_speed, x_pos_bg, y_pos_bg, points, obstacles
     run = True
-    clock = pygame.time.Clock()
     player = Dinosaur()
+    player.timeSinceJump+=1
     cloud = Cloud()
     game_speed = 20
     x_pos_bg = 0
     y_pos_bg = 380
     points = 0
-    font = pygame.font.Font('freesansbold.ttf', 20)
     obstacles = []
     death_count = 0
 
@@ -199,9 +261,13 @@ def main():
         x_pos_bg -= game_speed
 
     while run:
+        clock.tick(300)
+        player.timeSinceJump+=1
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+                pygame.display.quit()
+                pygame.quit()
 
         SCREEN.fill((255, 255, 255))
         userInput = pygame.key.get_pressed()
@@ -237,30 +303,51 @@ def main():
 
 
 def menu(death_count):
+    user_name = ""
     global points
     run = True
     while run:
+        clock.tick(30)
+        
         SCREEN.fill((255, 255, 255))
         font = pygame.font.Font('freesansbold.ttf', 30)
 
         if death_count == 0:
-            text = font.render("Press any Key to Start", True, (0, 0, 0))
+            SCREEN.blit(RUNNING[0], (SCREEN_WIDTH // 2 - 20, SCREEN_HEIGHT // 2 - 400))
+            text = font.render("Press enter to Start", True, (0, 0, 0))
+            textRect = text.get_rect()
+            textRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+            SCREEN.blit(text, textRect)
         elif death_count > 0:
-            text = font.render("Press any Key to Restart", True, (0, 0, 0))
-            score = font.render("Your Score: " + str(points), True, (0, 0, 0))
+            SCREEN.blit(RUNNING[0], (SCREEN_WIDTH // 2 - 20, SCREEN_HEIGHT // 2 - 440))
+            displayLBText()
+            score = font.render("Your Score: " + str(points) + ". Press Enter to restart.", True, (0, 0, 0))
             scoreRect = score.get_rect()
-            scoreRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50)
+            scoreRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 200)
             SCREEN.blit(score, scoreRect)
-        textRect = text.get_rect()
-        textRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-        SCREEN.blit(text, textRect)
-        SCREEN.blit(RUNNING[0], (SCREEN_WIDTH // 2 - 20, SCREEN_HEIGHT // 2 - 140))
+            name = font.render("Your name: " + user_name, True, (0, 0, 0))
+            nameRect = score.get_rect()
+            nameRect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 150)
+            SCREEN.blit(name, nameRect)
+
+        
         pygame.display.update()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+                pygame.display.quit()
+                pygame.quit()
+            if event.type == pygame.KEYDOWN and death_count > 0 and points > leaderboardScores[-1]:
+                if event.key == pygame.K_BACKSPACE:
+                    user_name = user_name[:-1]
+                elif event.key != pygame.K_RETURN and event.key != pygame.K_KP_ENTER:
+                    user_name += event.unicode
             if event.type == pygame.KEYDOWN:
-                main()
+                if (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER) and death_count != 0:
+                    insertNewScoreIntoLB(user_name, points)
+                    main()
+                elif (event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER):
+                    main()
 
 
 menu(death_count=0)
